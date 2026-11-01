@@ -9,8 +9,12 @@
   const IMG_H = 1536;
   const CLIP_WAIT_MS = 9000;
   const CLIP_WATCHDOG_MS = 11000;
-  // How long the camera takes to close in on the chosen floor before the film starts.
-  const ZOOM_MS = 1400;
+  // The camera closes in on the chosen floor, and the living room starts fading in before
+  // the zoom ends so the two read as one move.
+  const ZOOM_MS = 1500;
+  const ZOOM_HANDOFF_MS = 1050;
+  const FOCUS_X = 1550;
+  const FOCUS_W = 918;
   const STILL_SIZES = "(max-width: 1023px) 130vw, 100vw";
   const START_FLOOR = 4;
   // Rough exchange rate used for every złoty figure on the page.
@@ -25,12 +29,10 @@
     poster: `assets/video/${name}.webp`,
   });
 
-  // Apartment types. Hotspot x and y are fractions of the interior photo. start is the
-  // rectangle of the exterior photo (x, y, width, height) that the fly-in film opens on.
+  // Apartment types. Hotspot x and y are fractions of the interior photo.
   const ZONES = {
     a: {
       id: "a",
-      start: [961, 624, 918, 512],
       type: "1 sypialnia",
       outdoor: "balkon",
       insideName: "jedna sypialnia",
@@ -39,7 +41,6 @@
       interior: "assets/picker/inside-a",
       roomImage: "assets/picker/room-a",
       room: { title: "Sypialnia", text: "Łóżko stoi naprzeciw okna. Rano widać palmy i pasek turkusowej wody." },
-      fly: clip("fly-a"),
       move: clip("move-a"),
       hotspots: [
         { id: "room", label: "Sypialnia", x: 0.9, y: 0.5, move: true },
@@ -49,7 +50,6 @@
     },
     b: {
       id: "b",
-      start: [941, 384, 918, 512],
       type: "2 sypialnie, narożne",
       outdoor: "balkon",
       insideName: "dwie sypialnie",
@@ -58,7 +58,6 @@
       interior: "assets/picker/inside-b",
       roomImage: "assets/picker/room-b",
       room: { title: "Balkon z jacuzzi", text: "Tekowy pokład, jacuzzi w trawertynie i cała zatoka Kamala przed Tobą." },
-      fly: clip("fly-b"),
       move: clip("move-b"),
       hotspots: [
         { id: "room", label: "Balkon z jacuzzi", x: 0.21, y: 0.55, move: true },
@@ -68,7 +67,6 @@
     },
     c: {
       id: "c",
-      start: [1241, 184, 918, 512],
       type: "Penthouse z basenem",
       outdoor: "taras",
       insideName: "penthouse",
@@ -77,7 +75,6 @@
       interior: "assets/picker/inside-c",
       roomImage: "assets/picker/room-c",
       room: { title: "Prywatny basen", text: "Basen infinity tylko dla penthouse'u. Krawędź wody łączy się z horyzontem." },
-      fly: clip("fly-c"),
       move: clip("move-c"),
       hotspots: [
         { id: "room", label: "Prywatny basen", x: 0.88, y: 0.72, move: true },
@@ -169,7 +166,7 @@
   }
 
   // outside: the building and the panel. zooming: the camera closes in on the chosen floor.
-  // flying and moving: a film is playing. inside: the living room with hotspots.
+  // inside: the living room with hotspots. moving: the film to the second room is playing.
   // room: the second room after the camera move.
   function initPicker() {
     const section = document.getElementById("apartamenty");
@@ -200,6 +197,7 @@
     let warmedOnce = false;
     let warmTimer = 0;
     let watchdog = 0;
+    let unzoomTimer = 0;
     let shownActive = START_FLOOR;
     let warmZone = null;
     let spotsKey = "";
@@ -246,21 +244,18 @@
       return img;
     }
 
-    // Layers per apartment type, stacked: film in, living room, film to the room, room.
+    // Layers per apartment type, stacked: living room, film to the room, room.
     const layers = {};
     for (const id of ZONE_IDS) {
       const zone = ZONES[id];
       const group = {
-        fly: makeVideo("pk-fly", () => {
-          if (state.phase === "flying") setPhase("inside");
-        }),
         inside: makeStill("pk-inside", `Salon w apartamencie: ${zone.type}`),
         move: makeVideo("pk-move", () => {
           if (state.phase === "moving") setPhase("room");
         }),
         room: makeStill("pk-room", zone.room.title),
       };
-      for (const el of [group.fly, group.inside, group.move, group.room]) scene.insertBefore(el, scrim);
+      for (const el of [group.inside, group.move, group.room]) scene.insertBefore(el, scrim);
       layers[id] = group;
     }
 
@@ -268,9 +263,7 @@
       const compact = compactQuery.matches;
       for (const id of ZONE_IDS) {
         const zone = ZONES[id];
-        const flySrc = compact ? zone.fly.mobile : zone.fly.desktop;
         const moveSrc = compact ? zone.move.mobile : zone.move.desktop;
-        if (layers[id].fly.getAttribute("src") !== flySrc) layers[id].fly.setAttribute("src", flySrc);
         if (layers[id].move.getAttribute("src") !== moveSrc) layers[id].move.setAttribute("src", moveSrc);
       }
     }
@@ -286,7 +279,6 @@
       layers[id].inside.src = inside.src;
       layers[id].room.srcset = room.srcset;
       layers[id].room.src = room.src;
-      layers[id].fly.poster = zone.fly.poster;
       layers[id].move.poster = zone.move.poster;
     }
 
@@ -346,7 +338,6 @@
 
       for (const id of ZONE_IDS) {
         const here = zone.id === id;
-        layers[id].fly.dataset.on = String(here && phase !== "outside" && phase !== "zooming");
         layers[id].inside.dataset.on = String(here && inView);
         layers[id].move.dataset.on = String(here && (phase === "moving" || phase === "room"));
         layers[id].room.dataset.on = String(here && phase === "room");
@@ -451,27 +442,31 @@
       if (phase === "outside" || phase === "inside" || phase === "room") busy = false;
       window.clearTimeout(watchdog);
       // A stalled film never traps the visitor: move on after a generous deadline.
-      if (phase === "flying" || phase === "moving") {
-        const next = phase === "flying" ? "inside" : "room";
+      if (phase === "moving") {
         watchdog = window.setTimeout(() => {
-          if (state.phase === phase) setPhase(next);
+          if (state.phase === "moving") setPhase("room");
         }, CLIP_WATCHDOG_MS);
       }
-      if (phase === "outside" || phase === "inside" || phase === "room") unzoom();
+      window.clearTimeout(unzoomTimer);
+      if (phase === "outside") unzoom();
+      // Reset the zoomed building only once the living room has fully covered it.
+      if (phase === "inside")
+        unzoomTimer = window.setTimeout(() => {
+          if (state.phase !== "outside" && state.phase !== "zooming") unzoom();
+        }, 1200);
       render();
       if (phase === "inside" || phase === "room") capTitle.focus({ preventScroll: true });
       if (phase === "inside" && motionOk()) warm(layers[enteredZone().id].move);
       if (phase === "outside") applySources();
     }
 
-    // Buffer the film and stills of whatever floor the visitor is looking at.
+    // Load the stills of whatever floor the visitor is looking at.
     function scheduleWarm(id) {
       window.clearTimeout(warmTimer);
       warmTimer = window.setTimeout(
         () => {
           warmedOnce = true;
           prime(id);
-          if (motionOk()) warm(layers[id].fly);
         },
         warmedOnce ? 350 : 1600,
       );
@@ -496,49 +491,39 @@
       }
     }
 
-    // Scale the exterior photo so the zone's start rectangle fills the scene: the frame the
-    // fly-in film opens on, so the film takes over from the still without a jump.
-    function zoomTo(zone) {
-      const [x, y, w] = zone.start;
+    // Scale the exterior photo so a window around floor n fills the scene. The window sits
+    // on the left half of the facade, centred on the floor's balconies.
+    function zoomTo(n) {
+      const up = SLABS[5 - n];
+      const lo = SLABS[6 - n];
+      const at = (slab) => slab[0][1] + ((slab[1][1] - slab[0][1]) * (FOCUS_X - slab[0][0])) / (slab[1][0] - slab[0][0]);
+      const h = (FOCUS_W * IMG_H) / IMG_W;
+      const x = FOCUS_X - FOCUS_W / 2;
+      const y = (at(up) + at(lo)) / 2 - h / 2;
       ext.style.transformOrigin = "0 0";
-      ext.style.transition = `transform ${ZOOM_MS}ms cubic-bezier(0.5, 0, 0.3, 1)`;
-      ext.style.transform = `scale(${IMG_W / w}) translate(${(-x / IMG_W) * 100}%, ${(-y / IMG_H) * 100}%)`;
+      ext.style.transition = `transform ${ZOOM_MS}ms cubic-bezier(0.55, 0, 0.25, 1), filter ${ZOOM_MS}ms ease-in`;
+      ext.style.transform = `scale(${IMG_W / FOCUS_W}) translate(${(-x / IMG_W) * 100}%, ${(-y / IMG_H) * 100}%)`;
+      ext.style.filter = "brightness(1.08)";
     }
 
     function unzoom() {
       ext.style.transition = "none";
       ext.style.transform = "";
       ext.style.transformOrigin = "";
+      ext.style.filter = "";
     }
 
-    // Close in on the floor while the film buffers, then hand over to the film. Without a
-    // film the zoomed photo fades straight into the living room.
-    async function flyIn(id) {
-      const video = layers[id].fly;
+    // The camera closes in on the chosen floor and the living room fades in over the end of
+    // the move, as if stepping through the balcony door.
+    async function zoomIn(n) {
       if (!motionOk()) {
         setPhase("inside");
         return;
       }
-      warm(video);
-      const ready = waitReady(video, CLIP_WAIT_MS).then(
-        () => true,
-        () => false,
-      );
       setPhase("zooming");
-      zoomTo(ZONES[id]);
-      await new Promise((resolve) => window.setTimeout(resolve, ZOOM_MS));
-      if (state.phase !== "zooming") return;
-      if (!(await ready) || state.phase !== "zooming") {
-        if (state.phase === "zooming") setPhase("inside");
-        return;
-      }
-      video.currentTime = 0;
-      setPhase("flying");
-      try {
-        await video.play();
-      } catch {
-        setPhase("inside");
-      }
+      zoomTo(n);
+      await new Promise((resolve) => window.setTimeout(resolve, ZOOM_HANDOFF_MS));
+      if (state.phase === "zooming") setPhase("inside");
     }
 
     function enter(n) {
@@ -552,7 +537,7 @@
         section.scrollIntoView({ behavior: motionOk() ? "smooth" : "auto", block: "start" });
       }
       render();
-      flyIn(id);
+      zoomIn(n);
     }
 
     function goRoom() {
@@ -587,7 +572,7 @@
         }, 1000);
       }
       setPhase("outside");
-      rewind(ZONE_IDS.flatMap((id) => [layers[id].fly, layers[id].move]));
+      rewind(ZONE_IDS.map((id) => layers[id].move));
       window.setTimeout(() => enterButton.focus({ preventScroll: true }), 80);
     }
 

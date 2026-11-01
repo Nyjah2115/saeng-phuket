@@ -460,7 +460,6 @@ html {
   pointer-events: none;
 }
 
-.pk-fly,
 .pk-inside,
 .pk-move,
 .pk-room {
@@ -468,14 +467,20 @@ html {
   pointer-events: none;
 }
 
-.pk-fly {
-  z-index: 4;
-  transition: opacity 0.3s linear;
-}
-
+/* The living room arrives slightly enlarged and settles, like a step through the door. */
 .pk-inside {
   z-index: 5;
-  transition: opacity 0.55s ease;
+  transform: scale(1.07);
+  transition:
+    opacity 0.7s ease,
+    transform 0s 0.7s;
+}
+
+.pk-inside[data-on="true"] {
+  transform: none;
+  transition:
+    opacity 0.7s ease,
+    transform 1.9s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .pk-move {
@@ -488,7 +493,6 @@ html {
   transition: opacity 0.55s ease;
 }
 
-.pk-fly[data-on="true"],
 .pk-inside[data-on="true"],
 .pk-move[data-on="true"],
 .pk-room[data-on="true"] {
@@ -528,7 +532,7 @@ html {
   opacity: 1;
   visibility: visible;
   transition:
-    opacity 0.5s ease 0.25s,
+    opacity 0.5s ease 0.8s,
     visibility 0s;
 }
 
@@ -2285,11 +2289,14 @@ html {
     transition-duration: 0.01s !important;
   }
 
-  .pk-fly,
   .pk-inside,
   .pk-move,
   .pk-room {
     transition-duration: 0.2s !important;
+  }
+
+  .pk-inside {
+    transform: none;
   }
 
   .pk-num,
@@ -2317,7 +2324,6 @@ html {
 }
 
 .pk[data-phase="zooming"] .pk-back,
-.pk[data-phase="flying"] .pk-back,
 .pk[data-phase="moving"] .pk-back {
   visibility: hidden;
 }

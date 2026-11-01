@@ -13,14 +13,14 @@ Na żywo: https://nyjah2115.github.io/saeng-phuket/
 
 - `index.html`: treść strony
 - `styles.css`: wygląd (czerń, złoto, Cormorant Garamond i Manrope)
-- `app.js`: wybór piętra, przeloty kamery, karuzela udogodnień, kalkulator najmu i formularz
+- `app.js`: wybór piętra, zbliżenie na piętro i przejścia kamery w środku, karuzela udogodnień, kalkulator najmu i formularz
 - `assets/picker`: budynek, salony i drugie pomieszczenia (wersje 2752 px i 1440 px)
-- `assets/video`: przeloty kamery, wersja na komputer i na telefon (`-m`), bez dźwięku
+- `assets/video`: przejścia z salonu do drugiego pomieszczenia, wersja na komputer i na telefon (`-m`), bez dźwięku
 - `assets/photos`: zdjęcia sekcji
 - `404.html`: strona „Nie ma takiego piętra”
 
 ## Zmiana danych
 
-Metraże, ceny w THB i liczba wolnych apartamentów są w `app.js` w tablicy `FLOORS`. Opisy apartamentów, drugich pomieszczeń i punkty w środku są w `ZONES`. Obrys pięter na zdjęciu budynku to `SLABS`. Kurs złotówki to `THB_TO_PLN`. Założenia kalkulatora (udział operatora, opłaty wspólne, domyślna cena za noc i obłożenie) są w `OPERATOR_SHARE`, `CAM_THB_PER_M2_MONTH` i `CALC`. Liczby panelu przy pierwszym wczytaniu (piętro 4) są też wpisane w `index.html`.
+Metraże, ceny w THB i liczba wolnych apartamentów są w `app.js` w tablicy `FLOORS`. Opisy apartamentów, drugich pomieszczeń i punkty w środku są w `ZONES`. Obrys pięter na zdjęciu budynku to `SLABS`; z niego liczy się też zbliżenie na wybrane piętro (`FOCUS_X`, `FOCUS_W`). Kurs złotówki to `THB_TO_PLN`. Założenia kalkulatora (udział operatora, opłaty wspólne, domyślna cena za noc i obłożenie) są w `OPERATOR_SHARE`, `CAM_THB_PER_M2_MONTH` i `CALC`. Liczby panelu przy pierwszym wczytaniu (piętro 4) są też wpisane w `index.html`.
 
 Wszystkie zdjęcia i filmy wygenerowano w Higgsfield. Budynek, ceny, stopy zwrotu i wizualizacje są fikcyjne.
