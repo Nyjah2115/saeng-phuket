@@ -9,6 +9,8 @@
   const IMG_H = 1536;
   const CLIP_WAIT_MS = 9000;
   const CLIP_WATCHDOG_MS = 11000;
+  // How long the camera takes to close in on the chosen floor before the film starts.
+  const ZOOM_MS = 1400;
   const STILL_SIZES = "(max-width: 1023px) 130vw, 100vw";
   const START_FLOOR = 4;
   // Rough exchange rate used for every złoty figure on the page.
@@ -23,10 +25,12 @@
     poster: `assets/video/${name}.webp`,
   });
 
-  // Apartment types. Hotspot x and y are fractions of the interior photo.
+  // Apartment types. Hotspot x and y are fractions of the interior photo. start is the
+  // rectangle of the exterior photo (x, y, width, height) that the fly-in film opens on.
   const ZONES = {
     a: {
       id: "a",
+      start: [961, 624, 918, 512],
       type: "1 sypialnia",
       outdoor: "balkon",
       insideName: "jedna sypialnia",
@@ -45,6 +49,7 @@
     },
     b: {
       id: "b",
+      start: [941, 384, 918, 512],
       type: "2 sypialnie, narożne",
       outdoor: "balkon",
       insideName: "dwie sypialnie",
@@ -56,13 +61,14 @@
       fly: clip("fly-b"),
       move: clip("move-b"),
       hotspots: [
-        { id: "room", label: "Balkon z jacuzzi", x: 0.79, y: 0.55, move: true },
-        { id: "kitchen", label: "Wyspa kuchenna", x: 0.46, y: 0.56, note: "Wyspa z trawertynu ma 2,6 m długości. Nad nią wiszą dwie lampy z mosiądzu." },
-        { id: "bedrooms", label: "Sypialnie", x: 0.25, y: 0.44, note: "Dwie sypialnie, każda z własną łazienką. Z głównej widać zatokę." },
+        { id: "room", label: "Balkon z jacuzzi", x: 0.21, y: 0.55, move: true },
+        { id: "kitchen", label: "Wyspa kuchenna", x: 0.54, y: 0.56, note: "Wyspa z trawertynu ma 2,6 m długości. Nad nią wiszą dwie lampy z mosiądzu." },
+        { id: "bedrooms", label: "Sypialnie", x: 0.75, y: 0.44, note: "Dwie sypialnie, każda z własną łazienką. Z głównej widać zatokę." },
       ],
     },
     c: {
       id: "c",
+      start: [1241, 184, 918, 512],
       type: "Penthouse z basenem",
       outdoor: "taras",
       insideName: "penthouse",
@@ -162,13 +168,15 @@
     });
   }
 
-  // outside: the building and the panel. flying and moving: a film is playing.
-  // inside: the living room with hotspots. room: the second room after the camera move.
+  // outside: the building and the panel. zooming: the camera closes in on the chosen floor.
+  // flying and moving: a film is playing. inside: the living room with hotspots.
+  // room: the second room after the camera move.
   function initPicker() {
     const section = document.getElementById("apartamenty");
     if (!section) return;
     const pick = (selector) => section.querySelector(selector);
     const scene = pick(".pk-scene");
+    const ext = pick(".pk-ext");
     const svg = pick(".pk-floors");
     const tag = pick(".pk-tag");
     const scrim = pick(".pk-scrim");
@@ -307,7 +315,7 @@
       const captionOn = phase === "inside" || phase === "room";
 
       section.dataset.phase = phase;
-      scene.style.setProperty("--fx", phase === "outside" ? "0.66" : "0.5");
+      scene.style.setProperty("--fx", phase === "outside" || phase === "zooming" ? "0.66" : "0.5");
       polygons.forEach((shape, index) => shape.setAttribute("data-on", String(phase === "outside" && active === index + 1)));
 
       const place = floorTag(active);
@@ -338,7 +346,7 @@
 
       for (const id of ZONE_IDS) {
         const here = zone.id === id;
-        layers[id].fly.dataset.on = String(here && phase !== "outside");
+        layers[id].fly.dataset.on = String(here && phase !== "outside" && phase !== "zooming");
         layers[id].inside.dataset.on = String(here && inView);
         layers[id].move.dataset.on = String(here && (phase === "moving" || phase === "room"));
         layers[id].room.dataset.on = String(here && phase === "room");
@@ -449,6 +457,7 @@
           if (state.phase === phase) setPhase(next);
         }, CLIP_WATCHDOG_MS);
       }
+      if (phase === "outside" || phase === "inside" || phase === "room") unzoom();
       render();
       if (phase === "inside" || phase === "room") capTitle.focus({ preventScroll: true });
       if (phase === "inside" && motionOk()) warm(layers[enteredZone().id].move);
@@ -487,6 +496,51 @@
       }
     }
 
+    // Scale the exterior photo so the zone's start rectangle fills the scene: the frame the
+    // fly-in film opens on, so the film takes over from the still without a jump.
+    function zoomTo(zone) {
+      const [x, y, w] = zone.start;
+      ext.style.transformOrigin = "0 0";
+      ext.style.transition = `transform ${ZOOM_MS}ms cubic-bezier(0.5, 0, 0.3, 1)`;
+      ext.style.transform = `scale(${IMG_W / w}) translate(${(-x / IMG_W) * 100}%, ${(-y / IMG_H) * 100}%)`;
+    }
+
+    function unzoom() {
+      ext.style.transition = "none";
+      ext.style.transform = "";
+      ext.style.transformOrigin = "";
+    }
+
+    // Close in on the floor while the film buffers, then hand over to the film. Without a
+    // film the zoomed photo fades straight into the living room.
+    async function flyIn(id) {
+      const video = layers[id].fly;
+      if (!motionOk()) {
+        setPhase("inside");
+        return;
+      }
+      warm(video);
+      const ready = waitReady(video, CLIP_WAIT_MS).then(
+        () => true,
+        () => false,
+      );
+      setPhase("zooming");
+      zoomTo(ZONES[id]);
+      await new Promise((resolve) => window.setTimeout(resolve, ZOOM_MS));
+      if (state.phase !== "zooming") return;
+      if (!(await ready) || state.phase !== "zooming") {
+        if (state.phase === "zooming") setPhase("inside");
+        return;
+      }
+      video.currentTime = 0;
+      setPhase("flying");
+      try {
+        await video.play();
+      } catch {
+        setPhase("inside");
+      }
+    }
+
     function enter(n) {
       if (busy || state.phase !== "outside") return;
       busy = true;
@@ -498,7 +552,7 @@
         section.scrollIntoView({ behavior: motionOk() ? "smooth" : "auto", block: "start" });
       }
       render();
-      playClip(layers[id].fly, "flying", "inside");
+      flyIn(id);
     }
 
     function goRoom() {

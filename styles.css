@@ -2316,6 +2316,7 @@ html {
   display: flex;
 }
 
+.pk[data-phase="zooming"] .pk-back,
 .pk[data-phase="flying"] .pk-back,
 .pk[data-phase="moving"] .pk-back {
   visibility: hidden;
