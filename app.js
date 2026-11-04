@@ -19,9 +19,8 @@
   const START_FLOOR = 4;
   // Rough exchange rate used for every złoty figure on the page.
   const THB_TO_PLN = 0.11;
-  const INTRO_POINTER =
-    "Najedź na piętro, a jego balkony zabłysną. Kliknij je albo ustaw suwak i wejdź przez szybę do środka.";
-  const INTRO_TOUCH = "Dotknij piętra albo przesuń suwak, a potem wejdź przez szybę do środka.";
+  const INTRO_POINTER = "Najedź na piętro i kliknij, żeby wejść.";
+  const INTRO_TOUCH = "Dotknij piętra albo przesuń suwak.";
 
   const clip = (name) => ({
     desktop: `assets/video/${name}.mp4`,
@@ -36,7 +35,6 @@
       type: "1 sypialnia",
       outdoor: "balkon",
       insideName: "jedna sypialnia",
-      view: "Z balkonu widać palmy i pasek morza.",
       insideText: "Salon z aneksem otwiera się na balkon. Sypialnia jest tuż obok, za tekowymi drzwiami.",
       interior: "assets/picker/inside-a",
       roomImage: "assets/picker/room-a",
@@ -53,7 +51,6 @@
       type: "2 sypialnie, narożne",
       outdoor: "balkon",
       insideName: "dwie sypialnie",
-      view: "Narożne, prosto na zatokę.",
       insideText: "Narożny salon ma szkło z dwóch stron. Z wyspy kuchennej widać zatokę, a na balkonie czeka jacuzzi.",
       interior: "assets/picker/inside-b",
       roomImage: "assets/picker/room-b",
@@ -70,7 +67,6 @@
       type: "Penthouse z basenem",
       outdoor: "taras",
       insideName: "penthouse",
-      view: "Całe ostatnie piętro i prywatny basen.",
       insideText: "Salon ma prawie 6 m wysokości. Schody prowadzą na dach, a za szklanymi drzwiami po prawej jest prywatny basen.",
       interior: "assets/picker/inside-c",
       roomImage: "assets/picker/room-c",
@@ -127,8 +123,7 @@
     if (zl >= 1e6) return `≈ ${(zl / 1e6).toLocaleString("pl-PL", { maximumFractionDigits: 2 })} mln zł`;
     return `≈ ${groups(zl / 1000)} tys. zł`;
   }
-  const areaText = (f, zone) =>
-    `Od ${f.area[0]} do ${f.area[1]} m², ${zone.outdoor} od ${f.outdoor[0]} do ${f.outdoor[1]} m².`;
+  const areaText = (f, zone) => `${f.area[0]}–${f.area[1]} m² · ${zone.outdoor} ${f.outdoor[0]}–${f.outdoor[1]} m²`;
   const still = (base) => ({ src: `${base}-2752.webp`, srcset: `${base}-1440.webp 1440w, ${base}-2752.webp 2752w` });
 
   const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -319,7 +314,7 @@
         restartAnimation(numEl, String(active));
         restartAnimation(tag.firstElementChild, String(active));
         pick("[data-type]").textContent = activeZone.type;
-        pick("[data-desc]").textContent = `${areaText(floor, activeZone)} ${activeZone.view}`;
+        pick("[data-desc]").textContent = areaText(floor, activeZone);
         pick("[data-price]").textContent = thb(floor.from);
         pick("[data-pln]").textContent = pln(floor.from);
         pick("[data-free]").textContent = `${floor.free} z ${floor.total}`;
