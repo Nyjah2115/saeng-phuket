@@ -12,8 +12,8 @@ Na żywo: https://nyjah2115.github.io/saeng-phuket/
 ## Co gdzie jest
 
 - `index.html`: treść strony
-- `styles.css`: wygląd (czerń, złoto, Cormorant Garamond i Manrope)
-- `app.js`: wybór piętra, zbliżenie na piętro i przejścia kamery w środku, karuzela udogodnień, kalkulator najmu i formularz
+- `styles.css`: wygląd; wybór piętra w czerni i złocie, sekcje pod nim w stylu konceptu Coco Villas (krem, brąz, Helvetica Neue albo Inter Tight)
+- `app.js`: wybór piętra, zbliżenie na piętro i przejścia kamery w środku, lista udogodnień ze zdjęciem po najechaniu, kalkulator najmu, formularz i animacje sekcji (płynne przewijanie Lenis)
 - `assets/picker`: budynek, salony i drugie pomieszczenia (wersje 2752 px i 1440 px)
 - `assets/video`: przejścia z salonu do drugiego pomieszczenia, wersja na komputer i na telefon (`-m`), bez dźwięku
 - `assets/photos`: zdjęcia sekcji
