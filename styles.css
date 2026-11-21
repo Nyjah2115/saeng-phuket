@@ -2379,3 +2379,67 @@ html.lenis body {
     flex-direction: column;
   }
 }
+
+/* ---------- phone (21.11) ---------- */
+
+@media (max-width: 1023px) {
+  /* The <ol> kept the browser's indent; rows now line up with the gutter like every other section. */
+  .bc-list-rows {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Over the photo: the button reads at a glance and leaves room for the back link in one line. */
+  .sg-cta {
+    padding: 0 14px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .pk-back {
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  /* Tighter rhythm: the desktop spacing left long empty stretches on a phone. */
+  .bc-split-copy {
+    padding: 64px var(--bc-gutter) 40px;
+  }
+
+  .bc-cols {
+    margin-top: 32px;
+  }
+
+  .bc-split-photo {
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .bc-spec,
+  .bc-works,
+  .bc-invest {
+    padding-bottom: 56px;
+  }
+
+  .bc-rows {
+    margin-top: 32px;
+  }
+
+  .bc-works .bc-statement,
+  .bc-invest .bc-statement {
+    margin-block: 56px 32px;
+  }
+
+  .bc-contact .bc-statement {
+    margin-top: 56px;
+  }
+
+  /* The huge name fits between the gutters instead of running off the right edge. */
+  .bc-giant {
+    font-size: calc((100vw - 2 * var(--bc-gutter)) / 3.4);
+  }
+}

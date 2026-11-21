@@ -811,10 +811,10 @@
       split(el, true);
       watch(el);
     });
-    document.querySelectorAll(".bc-split-photo, .bc-dark-photo, .bc-contact-photo").forEach((el) => {
-      el.classList.add("bc-unveil");
-      watch(el);
-    });
+    // Photos wait behind clip-path. Chrome's IntersectionObserver measures the clipped box, so a fully
+    // clipped photo never counts as on screen: the frame loop below reveals these by position instead.
+    let unveils = Array.from(document.querySelectorAll(".bc-split-photo, .bc-dark-photo, .bc-contact-photo"));
+    unveils.forEach((el) => el.classList.add("bc-unveil"));
     document.querySelectorAll(".bc-rows, .bc-list-rows, .bc-points, .bc-dist, .bc-cols, .bc-footer-grid").forEach((el) => {
       el.classList.add("bc-stagger");
       Array.from(el.children).forEach((child, i) => child.style.setProperty("--i", String(i)));
@@ -849,13 +849,23 @@
       ...Array.from(document.querySelectorAll(".bc-split-photo img, .bc-contact-photo img"), (el) => ({ el, axis: "y", k: -0.1 })),
       ...Array.from(document.querySelectorAll(".bc-giant"), (el) => ({ el, axis: "x", k: 0.14 })),
     ];
+    // On a phone the huge words hold still, so they never slide past the screen edge.
+    const wideQuery = window.matchMedia("(min-width: 768px)");
     function frame(time) {
       if (lenis) lenis.raf(time);
       const vh = window.innerHeight;
+      if (unveils.length) {
+        unveils = unveils.filter((el) => {
+          const rect = el.getBoundingClientRect();
+          if (rect.top > vh * 0.9 || rect.bottom < 0) return true;
+          el.setAttribute("data-in", "");
+          return false;
+        });
+      }
       for (const d of drifts) {
         const rect = d.el.getBoundingClientRect();
         if (rect.bottom < -200 || rect.top > vh + 200) continue;
-        const offset = (rect.top + rect.height / 2 - vh / 2) * d.k;
+        const offset = d.axis === "x" && !wideQuery.matches ? 0 : (rect.top + rect.height / 2 - vh / 2) * d.k;
         d.el.style.translate = d.axis === "y" ? `0 ${offset.toFixed(1)}px` : `${offset.toFixed(1)}px 0`;
       }
       requestAnimationFrame(frame);
